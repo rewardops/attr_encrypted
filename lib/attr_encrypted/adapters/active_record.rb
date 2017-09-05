@@ -18,6 +18,10 @@ if defined?(ActiveRecord::Base)
             attr_encrypted_options[:encode] = true
 
             class << self
+              def send_deprecation_warning message
+                warn "DEPRECATION WARNING: #{message}"
+              end 
+
               alias_method :method_missing_without_attr_encrypted, :method_missing
               alias_method :method_missing, :method_missing_with_attr_encrypted
             end
@@ -51,6 +55,7 @@ if defined?(ActiveRecord::Base)
             super
             options = attrs.extract_options!
             attr = attrs.pop
+            attribute attr if ::ActiveRecord::VERSION::STRING >= "5.1.0"
             options.merge! encrypted_attributes[attr]
 
             define_method("#{attr}_was") do
@@ -120,7 +125,7 @@ if defined?(ActiveRecord::Base)
               attribute_names.each_with_index do |attribute, index|
                 if attr_encrypted?(attribute) && encrypted_attributes[attribute.to_sym][:mode] == :single_iv_and_salt
                   args[index] = send("encrypt_#{attribute}", args[index])
-                  warn "DEPRECATION WARNING: This feature will be removed in the next major release."
+                  send_deprecation_warning("This feature will be removed in the next major release.")
                   attribute_names[index] = encrypted_attributes[attribute.to_sym][:attribute]
                 end
               end
@@ -128,6 +133,7 @@ if defined?(ActiveRecord::Base)
             end
             method_missing_without_attr_encrypted(method, *args, &block)
           end
+
       end
     end
   end

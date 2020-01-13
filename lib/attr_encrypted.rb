@@ -143,16 +143,19 @@ module AttrEncrypted
       encrypted_attribute_name = (options[:attribute] ? options[:attribute] : [options[:prefix], attribute, options[:suffix]].join).to_sym
 
       instance_methods_as_symbols = attribute_instance_methods_as_symbols
-      attr_reader encrypted_attribute_name unless instance_methods_as_symbols.include?(encrypted_attribute_name)
-      attr_writer encrypted_attribute_name unless instance_methods_as_symbols.include?(:"#{encrypted_attribute_name}=")
 
-      iv_name = "#{encrypted_attribute_name}_iv".to_sym
-      attr_reader iv_name unless instance_methods_as_symbols.include?(iv_name)
-      attr_writer iv_name unless instance_methods_as_symbols.include?(:"#{iv_name}=")
+      if attribute_instance_methods_as_symbols_available?
+        attr_reader encrypted_attribute_name unless instance_methods_as_symbols.include?(encrypted_attribute_name)
+        attr_writer encrypted_attribute_name unless instance_methods_as_symbols.include?(:"#{encrypted_attribute_name}=")
 
-      salt_name = "#{encrypted_attribute_name}_salt".to_sym
-      attr_reader salt_name unless instance_methods_as_symbols.include?(salt_name)
-      attr_writer salt_name unless instance_methods_as_symbols.include?(:"#{salt_name}=")
+        iv_name = "#{encrypted_attribute_name}_iv".to_sym
+        attr_reader iv_name unless instance_methods_as_symbols.include?(iv_name)
+        attr_writer iv_name unless instance_methods_as_symbols.include?(:"#{iv_name}=")
+
+        salt_name = "#{encrypted_attribute_name}_salt".to_sym
+        attr_reader salt_name unless instance_methods_as_symbols.include?(salt_name)
+        attr_writer salt_name unless instance_methods_as_symbols.include?(:"#{salt_name}=")
+      end
 
       define_method(attribute) do
         instance_variable_get("@#{attribute}") || instance_variable_set("@#{attribute}", decrypt(attribute, send(encrypted_attribute_name)))
@@ -322,7 +325,7 @@ module AttrEncrypted
     #  @user.decrypt(:email, 'SOME_ENCRYPTED_EMAIL_STRING')
     def decrypt(attribute, encrypted_value)
       encrypted_attributes[attribute.to_sym][:operation] = :decrypting
-      encrypted_attributes[attribute.to_sym][:value_present] = (encrypted_value && !encrypted_value.empty?)
+      encrypted_attributes[attribute.to_sym][:value_present] = self.class.not_empty?(encrypted_value)
       self.class.decrypt(attribute, encrypted_value, evaluated_attr_encrypted_options_for(attribute))
     end
 
@@ -343,7 +346,7 @@ module AttrEncrypted
     #  @user.encrypt(:email, 'test@example.com')
     def encrypt(attribute, value)
       encrypted_attributes[attribute.to_sym][:operation] = :encrypting
-      encrypted_attributes[attribute.to_sym][:value_present] = (value && !value.empty?)
+      encrypted_attributes[attribute.to_sym][:value_present] = self.class.not_empty?(value)
       self.class.encrypt(attribute, value, evaluated_attr_encrypted_options_for(attribute))
     end
 
@@ -446,6 +449,10 @@ module AttrEncrypted
 
   def attribute_instance_methods_as_symbols
     instance_methods.collect { |method| method.to_sym }
+  end
+
+  def attribute_instance_methods_as_symbols_available?
+    true
   end
 
 end
